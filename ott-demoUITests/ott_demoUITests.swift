@@ -23,19 +23,55 @@ final class ott_demoUITests: XCTestCase {
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    func testSearchFlowFiltersResults() throws {
         let app = XCUIApplication()
         app.launch()
-
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-    }
-
-    @MainActor
-    func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
+        
+        // Wait for content
+        let catalogCells = app.buttons.matching(identifier: "catalog-item-cell")
+        let firstCell = catalogCells.firstMatch
+        XCTAssertTrue(firstCell.waitForExistence(timeout: 5))
+        
+        let initialItemCount = catalogCells.count
+        XCTAssertGreaterThan(initialItemCount, 0, "Should have catalog items")
+        
+        // Search with unlikely text
+        let searchField = app.textFields["Search videos..."]
+        searchField.tap()
+        searchField.typeText("xyz123")
+        
+        sleep(1)
+        
+        let filteredItemCount = catalogCells.count
+        XCTAssertLessThan(filteredItemCount, initialItemCount, "Search should reduce results")
+        
+        // Clear search
+        if app.buttons["Clear search"].exists {
+            app.buttons["Clear search"].tap()
+            sleep(1)
+            let restoredItemCount = catalogCells.count
+            XCTAssertEqual(restoredItemCount, initialItemCount, "Should restore all items")
         }
+    }
+    
+    @MainActor
+    func testHomeToDetailsToPlayerFlow() throws {
+        let app = XCUIApplication()
+        app.launch()
+        
+        // Wait for catalog items and tap first one
+        let catalogCells = app.buttons.matching(identifier: "catalog-item-cell")
+        let firstCatalogItem = catalogCells.firstMatch
+        XCTAssertTrue(firstCatalogItem.waitForExistence(timeout: 5))
+        firstCatalogItem.tap()
+        
+        // Tap play button on detail view
+        let playButton = app.buttons.containing(NSPredicate(format: "label CONTAINS[c] 'play'")).firstMatch
+        XCTAssertTrue(playButton.waitForExistence(timeout: 3))
+        playButton.tap()
+        
+        // Verify player appears
+        let playerElement = app.otherElements["Video player"]
+        XCTAssertTrue(playerElement.waitForExistence(timeout: 5))
     }
 }
